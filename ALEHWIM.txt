@@ -1,0 +1,108 @@
+--Abaixo estara Lib da nossa UI
+local Lib = loadstring(game:HttpGet("https://raw.githubusercontent.com/7yhx/kwargs_Ui_Library/main/source.lua"))()
+local UI = Lib:Create{
+    Theme = "Dark", -- or any other theme
+    Size = UDim2.new(0, 555, 0, 400) -- default
+ }
+ 
+ local Main = UI:Tab{
+    Name = "Inicio"
+ }
+ 
+ local Divider = Main:Divider{
+    Name = "Inicio shit"
+ }
+ 
+ local QuitDivider = Main:Divider{
+    Name = "Sair"
+ }
+
+
+
+ local aimAssist = {
+    enabled = false,  -- Começa desativado, pode ser ativado com "E"
+    aimKey = 38,  -- Tecla "E"
+    fov = 80,  -- Campo de visão
+    enemyColor = {0, 0, 255, 200},  -- Azul (RGBA)
+    allyColor = {255, 255, 0, 200}, -- Amarelo (RGBA)
+}
+
+-- Alternar aim assist com "E"
+Citizen.CreateThread(function()
+    while true do
+        Citizen.Wait(0)
+        if IsControlJustPressed(0, aimAssist.aimKey) then
+            aimAssist.enabled = not aimAssist.enabled
+            local status = aimAssist.enabled and "Ativado" or "Desativado"
+            print("Aim Assist " .. status)
+        end
+    end
+end)
+
+-- Função para desenhar marcador na tela
+local function drawMarker(x, y, color)
+    DrawRect(x, y, 0.01, 0.02, color[1], color[2], color[3], color[4])
+end
+
+-- Função para desenhar seta apontando para inimigos fora da tela
+local function drawArrow(x, y, rotation, color)
+    DrawSprite("commonmenu", "arrowright", x, y, 0.02, 0.04, rotation, color[1], color[2], color[3], color[4])
+end
+
+-- Função para encontrar jogadores próximos
+local function getPlayers()
+    local players = {}
+    for _, i in ipairs(GetActivePlayers()) do
+        table.insert(players, GetPlayerPed(i))
+    end
+    return players
+end
+
+-- Função para verificar se é aliado ou inimigo (exemplo genérico)
+local function isEnemy(playerPed)
+    return GetPlayerTeam(PlayerId()) ~= GetPlayerTeam(GetPlayerFromServerId(NetworkGetNetworkIdFromEntity(playerPed)))
+end
+
+-- Função principal
+Citizen.CreateThread(function()
+    while true do
+        Citizen.Wait(0)
+        if aimAssist.enabled then
+            local playerPed = PlayerPedId()
+            local playerCoords = GetEntityCoords(playerPed)
+            local closestTarget = nil
+            local closestDist = aimAssist.fov
+
+            for _, ped in ipairs(getPlayers()) do
+                if ped ~= playerPed and not IsPedDeadOrDying(ped, true) then
+                    local targetCoords = GetEntityCoords(ped)
+                    local screenX, screenY = GetScreenCoordFromWorldCoord(targetCoords.x, targetCoords.y, targetCoords.z)
+                    local dist = #(playerCoords - targetCoords)
+
+                    -- Define cor do jogador (aliado ou inimigo)
+                    local color = isEnemy(ped) and aimAssist.enemyColor or aimAssist.allyColor
+
+                    -- Desenha marcador na tela para indicar jogador
+                    if screenX and screenY and dist < aimAssist.fov then
+                        drawMarker(screenX, screenY, color)
+                        if isEnemy(ped) and dist < closestDist then
+                            closestDist = dist
+                            closestTarget = ped
+                        end
+                    else
+                        -- Desenha seta na borda apontando para o inimigo
+                        drawArrow(0.5, 0.1, 0, aimAssist.enemyColor)
+                    end
+                end
+            end
+
+            -- Mira automaticamente no alvo mais próximo
+            if closestTarget then
+                local targetCoords = GetEntityCoords(closestTarget)
+                local x, y, z = table.unpack(targetCoords)
+                SetPedShootsAtCoord(PlayerPedId(), x, y, z, true)
+                SetGameplayCamRelativeHeading(GetHeadingFromVector_2d(x - playerCoords.x, y - playerCoords.y))
+            end
+        end
+    end
+end)
