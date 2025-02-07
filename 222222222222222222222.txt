@@ -1,0 +1,55 @@
+--Abaixo estara Lib da nossa UI
+local Lib = loadstring(game:HttpGet("https://raw.githubusercontent.com/7yhx/kwargs_Ui_Library/main/source.lua"))()
+local UI = Lib:Create{
+    Theme = "Dark", -- or any other theme
+    Size = UDim2.new(0, 555, 0, 400) -- default
+ }
+ 
+ local Main = UI:Tab{
+    Name = "Inicio"
+ }
+ 
+ local Divider = Inicio:Divider{
+    Name = "Inicio shit"
+ }
+ 
+ local QuitDivider = Inicio:Divider{
+    Name = "Sair"
+ }
+
+
+
+ local noRecoil = {
+    enabled = false,  -- Começa desativado
+    toggleKey = 38,  -- Tecla "E" para ativar/desativar
+}
+
+-- Alternar No Recoil com "E"
+Citizen.CreateThread(function()
+    while true do
+        Citizen.Wait(0)
+        if IsControlJustPressed(0, noRecoil.toggleKey) then
+            noRecoil.enabled = not noRecoil.enabled
+            local status = noRecoil.enabled and "Ativado" or "Desativado"
+            print("No Recoil " .. status)
+        end
+    end
+end)
+
+-- Removendo Recoil ao Atirar
+Citizen.CreateThread(function()
+    while true do
+        Citizen.Wait(0)
+        if noRecoil.enabled then
+            if IsPedShooting(PlayerPedId()) then
+                -- Remove o recuo automaticamente
+                local playerPed = PlayerPedId()
+                local _, weaponHash = GetCurrentPedWeapon(playerPed, true)
+                local camRot = GetGameplayCamRelativePitch()
+
+                -- Ajusta a câmera para evitar recuo
+                SetGameplayCamRelativePitch(camRot - 1.0, 1.0)
+            end
+        end
+    end
+end)
